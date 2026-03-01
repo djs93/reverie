@@ -1535,18 +1535,20 @@ function Reverie.use_cine(center, card, area, copier)
     }))
 end
 
-Card.card_open_reverie_ref = Card.open
+local card_open_reverie_ref = Card.open
+Card.card_open_reverie_ref = card_open_reverie_ref
 function Card:open()
     if self.ability.set == "Booster" and G.shop and G.booster_pack_meteors then
         G.booster_pack_meteors:fade(0)
     end
 
-    self:card_open_reverie_ref()
+    card_open_reverie_ref(self)
 end
 
-Card.card_explode_reverie_ref = Card.explode
+local card_explode_reverie_ref = Card.explode
+Card.card_explode_reverie_ref = card_explode_reverie_ref
 function Card:explode(dissolve_colours, explode_time_fac)
-    self:card_explode_reverie_ref(dissolve_colours, explode_time_fac)
+    card_explode_reverie_ref(self, dissolve_colours, explode_time_fac)
 
     if G.cine_quests and self.ability.set == "Booster" then
         G.E_MANAGER:add_event(Event({
@@ -1766,7 +1768,8 @@ function G.FUNCS.sell_card(e)
     end
 end
 
-Card.set_ability_reverie_ref = Card.set_ability
+local set_ability_reverie_ref = Card.set_ability
+Card.set_ability_reverie_ref = set_ability_reverie_ref
 function Card:set_ability(center, initial, delay_sprites)
     local before_enhancements, after_enhancements = 0, 0
 
@@ -1778,7 +1781,7 @@ function Card:set_ability(center, initial, delay_sprites)
         end
     end
 
-    self:set_ability_reverie_ref(center, initial, delay_sprites)
+    set_ability_reverie_ref(self, center, initial, delay_sprites)
 
     if self.ability.set == "Cine" and self.config.center.reward then
         self.ability.progress = 0
@@ -1812,7 +1815,8 @@ function Card:set_ability(center, initial, delay_sprites)
     end
 end
 
-Card.calculate_joker_reverie_ref = Card.calculate_joker
+local calculate_joker_reverie_ref = Card.calculate_joker
+Card.calculate_joker_reverie_ref = calculate_joker_reverie_ref
 function Card:calculate_joker(context)
     if self.debuff then
         return nil
@@ -1895,7 +1899,7 @@ function Card:calculate_joker(context)
         end
     end
 
-    local result = self:calculate_joker_reverie_ref(context)
+    local result = calculate_joker_reverie_ref(self, context)
 
     if self.ability.set == "Joker" and self.ability.morseled then
         if self.config.center.key == "j_kcva_swiss" and context.after and not context.blueprint then
@@ -1993,9 +1997,10 @@ function Tag:load(tag_savetable)
     self:tag_load_reverie_ref(tag_savetable)
 end
 
-Card.card_highlight_reverie_ref = Card.highlight
+local card_highlight_reverie_ref = Card.highlight
+Card.card_highlight_reverie_ref = card_highlight_reverie_ref
 function Card:highlight(is_higlighted)
-    self:card_highlight_reverie_ref(is_higlighted)
+    card_highlight_reverie_ref(self, is_higlighted)
 
     if Reverie.is_cine_or_reverie(self) or (self.area and self.area == G.pack_cards) then
         if self.highlighted and self.area and self.area.config.type ~= 'shop' then
@@ -2078,9 +2083,26 @@ function end_round()
     end
 end
 
-Card.add_to_deck_reverie_ref = Card.add_to_deck
+local add_to_deck_reverie_ref = Card.add_to_deck
+Card.add_to_deck_reverie_ref = add_to_deck_reverie_ref
 function Card:add_to_deck(from_debuff)
-    self:add_to_deck_reverie_ref(from_debuff)
+    -- Double-sided proxy cards (created by Cryptid's get_other_side_dummy) are plain
+    -- tables that copy instance functions but miss class-level methods like canStack.
+    -- Patch any missing Card class methods onto the proxy before calling down the chain.
+    if self.original_card and not self.canStack then
+        for k, v in pairs(Card) do
+            if type(v) == "function" and self[k] == nil then
+                local orig_k = k
+                self[orig_k] = function(_, ...)
+                    return Card[orig_k](self.original_card, ...)
+                end
+            end
+        end
+    end
+
+    if add_to_deck_reverie_ref then
+        add_to_deck_reverie_ref(self, from_debuff)
+    end
 
     if G.cine_quests and self.ability.set == "Joker" then
         for _, v in ipairs(G.cine_quests.cards) do
@@ -2092,14 +2114,16 @@ function Card:add_to_deck(from_debuff)
     end
 end
 
-Card.card_sell_card_reverie_ref = Card.sell_card
+local card_sell_card_reverie_ref = Card.sell_card
+Card.card_sell_card_reverie_ref = card_sell_card_reverie_ref
 function Card:sell_card()
     self.ability.not_destroyed = true
 
-    self:card_sell_card_reverie_ref()
+    card_sell_card_reverie_ref(self)
 end
 
-Card.card_remove_reverie_ref = Card.remove
+local card_remove_reverie_ref = Card.remove
+Card.card_remove_reverie_ref = card_remove_reverie_ref
 function Card:remove()
     local destroyed = (self.added_to_deck and not self.ability.not_destroyed) or (G.playing_cards and self.playing_card)
     local on_game_area = nil
@@ -2111,7 +2135,7 @@ function Card:remove()
         end
     end
 
-    self:card_remove_reverie_ref()
+    card_remove_reverie_ref(self)
 
     if G.cine_quests and destroyed and on_game_area then
         for _, v in ipairs(G.cine_quests.cards) do
@@ -2181,13 +2205,14 @@ function Reverie.set_card_back(card)
     end
 end
 
-Card.card_load_reverie_ref = Card.load
+local card_load_reverie_ref = Card.load
+Card.card_load_reverie_ref = card_load_reverie_ref
 function Card:load(cardTable, other_card)
     if cardTable.label == "Tag" then
         G.P_CENTERS[cardTable.save_fields.center] = G.P_TAGS[cardTable.save_fields.center]
     end
 
-    self:card_load_reverie_ref(cardTable, other_card)
+    card_load_reverie_ref(self, cardTable, other_card)
 
     if cardTable.label == "Tag" then
         G.P_CENTERS[cardTable.save_fields.center] = nil
